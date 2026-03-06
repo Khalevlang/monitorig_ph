@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitoring pH Air - lang2712</title>
+    <!-- Library MQTT Paho via CDN -->
+    <script src="https://cdnjs.cloudflare.com" type="text/javascript"></script>
+    <style>
+        :root { --primary: #1a73e8; --bg: #f8f9fa; --card: #ffffff; --text: #202124; }
+        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: var(--card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 30px; width: 100%; max-width: 450px; text-align: center; border-top: 6px solid var(--primary); }
+        .ph-label { font-size: 1.1rem; color: #5f6368; margin-bottom: 5px; }
+        .ph-value { font-size: 5.5rem; font-weight: 800; color: var(--primary); margin: 10px 0; line-height: 1; }
+        .status-badge { display: inline-block; padding: 10px 20px; border-radius: 30px; font-weight: 600; font-size: 0.9rem; margin: 15px 0; transition: 0.3s; }
+        .online { background: #e6f4ea; color: #1e8e3e; }
+        .offline { background: #fce8e6; color: #d93025; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
+        .item-label { font-size: 0.75rem; color: #70757a; text-transform: uppercase; letter-spacing: 1px; }
+        .item-data { font-size: 1.1rem; font-weight: 600; color: #3c4043; display: block; margin-top: 4px; }
+        .footer { margin-top: 20px; font-size: 0.8rem; color: #9aa0a6; }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <div class="ph-label">Kualitas pH Air</div>
+        <div id="ph-val" class="ph-value">--</div>
+        <div id="mqtt-status" class="status-badge offline">Menghubungkan ke Broker...</div>
+        
+        <div class="grid">
+            <div><span class="item-label">Waktu</span><span id="time-val" class="item-data">--:--:--</span></div>
+            <div><span class="item-label">Status Pompa</span><span id="pump-val" class="item-data">NORMAL</span></div>
+            <div><span class="item-label">Voltase</span><span id="volt-val" class="item-data">0.00 V</span></div>
+            <div><span class="item-label">Topic</span><span class="item-data" style="font-size: 0.8rem;">lang2712/data</span></div>
+        </div>
+    </div>
+
+    <div class="footer">Dashboard Real-time &bull; test.mosquitto.org</div>
+
+    <script>
+        // CONFIG - Sesuaikan dengan ESP32 Anda
+        const BROKER = "test.mosquitto.org";
+        const PORT = 8081; // Port WSS untuk koneksi aman/HTTPS
+        const TOPIC = "lang2712/data";
+        const CLIENT_ID = "Web_lang2712_" + Math.random().toString(16).substr(2, 4);
+
+        // Inisialisasi Paho MQTT Client
+        const client = new Paho.MQTT.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
+
+        client.onConnectionLost = (resp) => {
+            console.log("Koneksi terputus: " + resp.errorMessage);
+            updateStatus("OFFLINE", false);
+            setTimeout(connect, 5000); // Coba lagi dalam 5 detik
+        };
+
+        client.onMessageArrived = (msg) => {
+            console.log("Data Diterima: " + msg.payloadString);
+            try {
+                const data = JSON.parse(msg.payloadString);
+                
+                // Update Elemen UI
+                document.getElementById("ph-val").innerText = data.ph.toFixed(2);
+                document.getElementById("time-val").innerText = data.time;
+                document.getElementById("volt-val").innerText = data.volt.toFixed(2) + " V";
+                document.getElementById("pump-val").innerText = data.status;
+                
+                updateStatus("SISTEM ONLINE", true);
+            } catch (e) {
+                console.error("Format data bukan JSON valid!");
+            }
+        };
+
+        function updateStatus(txt, isOnline) {
+            const el = document.getElementById("mqtt-status");
+            el.innerText = txt;
+            el.className = isOnline ? "status-badge online" : "status-badge offline";
+        }
+
+        function connect() {
+            client.connect({
+                onSuccess: () => {
+                    console.log("Terhubung ke MQTT Broker");
+                    client.subscribe(TOPIC);
+                    updateStatus("MENUNGGU DATA...", true);
+                },
+                onFailure: (err) => {
+                    console.log("Gagal Terhubung: " + err.errorMessage);
+                    updateStatus("BROKER ERROR", false);
+                    setTimeout(connect, 5000);
+                },
+                useSSL: true,
+                timeout: 10
+            });
+        }
+
+        // Jalankan Koneksi
+        connect();
+    </script>
+</body>
+</html>
