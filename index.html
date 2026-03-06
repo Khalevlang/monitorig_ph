@@ -4,32 +4,26 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoring pH Air | lang2712</title>
-    <!-- Library MQTT Paho -->
+    
+    <!-- Memasukkan Library Paho MQTT secara Internal untuk menghindari Error 'Paho is not defined' -->
     <script src="https://cdnjs.cloudflare.com" type="text/javascript"></script>
+
     <style>
         :root { --primary: #1a73e8; --success: #1e8e3e; --danger: #d93025; --bg: #f1f3f4; }
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 500px; }
         .card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 25px; text-align: center; margin-bottom: 20px; border-top: 6px solid var(--primary); }
-        
-        .label { font-size: 0.9rem; color: #5f6368; text-transform: uppercase; letter-spacing: 1px; }
-        .ph-value { font-size: 5rem; font-weight: bold; color: var(--primary); margin: 10px 0; }
-        
-        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; margin-bottom: 20px; }
+        .label { font-size: 0.85rem; color: #5f6368; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
+        .ph-value { font-size: 5.5rem; font-weight: bold; color: var(--primary); margin: 10px 0; line-height: 1; }
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; margin-bottom: 20px; transition: 0.3s; }
         .online { background: #e6f4ea; color: var(--success); }
         .offline { background: #fce8e6; color: var(--danger); }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
-        .grid-item { text-align: center; }
-        .data-val { display: block; font-size: 1.1rem; font-weight: 600; color: #3c4043; margin-top: 4px; }
-        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; margin-top: 10px; }
+        .data-val { display: block; font-size: 1.2rem; font-weight: 600; color: #3c4043; margin-top: 4px; }
         .log-container { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); width: 100%; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
         th, td { padding: 10px; border-bottom: 1px solid #f1f1f1; text-align: center; }
-        th { color: #5f6368; }
-
-        .btn-fix { background: #5f6368; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
+        .btn-fix { background: #5f6368; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-top: 20px; font-size: 0.75rem; width: 100%; }
         .btn-fix:hover { background: #3c4043; }
     </style>
 </head>
@@ -38,74 +32,75 @@
     <div class="container">
         <div class="card">
             <div id="status-badge" class="status-badge offline">MENGHUBUNGKAN...</div>
-            <div class="label">Nilai pH Real-time</div>
+            <div class="label">pH Real-time</div>
             <div id="ph-display" class="ph-value">--</div>
             
             <div class="grid">
-                <div class="grid-item"><span class="label">Waktu</span><span id="time-display" class="data-val">--:--:--</span></div>
-                <div class="grid-item"><span class="label">Pompa</span><span id="pump-display" class="data-val">OFF</span></div>
-                <div class="grid-item"><span class="label">Voltase</span><span id="volt-display" class="data-val">0.00V</span></div>
-                <div class="grid-item"><span class="label">Topik</span><span class="data-val" style="font-size: 0.7rem;">lang2712/data</span></div>
+                <div><span class="label">Waktu</span><span id="time-display" class="data-val">--:--</span></div>
+                <div><span class="label">Pompa</span><span id="pump-display" class="data-val">OFF</span></div>
+                <div><span class="label">Voltase</span><span id="volt-display" class="data-val">0.00V</span></div>
+                <div><span class="label">Topik</span><span class="data-val" style="font-size: 0.7rem;">lang2712/data</span></div>
             </div>
 
-            <!-- Tombol Fix jika SSL Error -->
+            <!-- Tombol Darurat SSL -->
             <button class="btn-fix" onclick="window.open('https://test.mosquitto.org', '_blank')">
-                Klik ini jika status tetap Offline
+                STATUS TETAP OFFLINE? KLIK DISINI
             </button>
         </div>
 
         <div class="log-container">
-            <div class="label" style="margin-bottom: 10px; display: block;">Riwayat Data (5 Terakhir)</div>
+            <div class="label" style="margin-bottom: 10px;">Riwayat (5 Terakhir)</div>
             <table>
                 <thead>
                     <tr><th>Jam</th><th>pH</th><th>Status</th></tr>
                 </thead>
-                <tbody id="log-body">
-                    <!-- Baris data otomatis masuk di sini -->
-                </tbody>
+                <tbody id="log-body"></tbody>
             </table>
         </div>
     </div>
 
     <script>
-        // --- KONFIGURASI ---
+        // --- KONFIGURASI MQTT ---
         const BROKER = "test.mosquitto.org";
-        const PORT = 8081; // Port WSS (Websocket Secure)
+        const PORT = 8081; 
         const TOPIC = "lang2712/data";
-        const CLIENT_ID = "Web_User_" + Math.random().toString(16).substr(2, 4);
+        const CLIENT_ID = "Web_lang2712_" + Math.random().toString(16).substr(2, 4);
 
-        // Inisialisasi Client
-        const client = new Paho.MQTT.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
+        // Tunggu Library Paho termuat sepenuhnya
+        window.onload = function() {
+            if (typeof Paho !== "undefined") {
+                connectMQTT();
+            } else {
+                document.getElementById("status-badge").innerText = "LIBRARY ERROR";
+                console.error("Library Paho tidak terdeteksi!");
+            }
+        };
+
+        const client = new Paho.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
 
         client.onConnectionLost = (resp) => {
-            updateUIStatus("KONEKSI TERPUTUS", false);
+            updateStatus("KONEKSI TERPUTUS", false);
             setTimeout(connectMQTT, 5000);
         };
 
         client.onMessageArrived = (msg) => {
             try {
                 const data = JSON.parse(msg.payloadString);
-                
-                // Update Display Utama
                 document.getElementById("ph-display").innerText = data.ph.toFixed(2);
                 document.getElementById("time-display").innerText = data.time;
                 document.getElementById("volt-display").innerText = data.volt.toFixed(2) + "V";
                 document.getElementById("pump-display").innerText = data.status;
                 
-                updateUIStatus("SISTEM ONLINE", true);
+                updateStatus("SISTEM ONLINE", true);
 
-                // Update Tabel Riwayat
                 const tbody = document.getElementById("log-body");
                 const row = tbody.insertRow(0);
                 row.innerHTML = `<td>${data.time}</td><td><b>${data.ph.toFixed(2)}</b></td><td>${data.status}</td>`;
                 if(tbody.rows.length > 5) tbody.deleteRow(5);
-
-            } catch (e) {
-                console.error("Payload bukan JSON valid!", msg.payloadString);
-            }
+            } catch (e) { console.log("JSON Error"); }
         };
 
-        function updateUIStatus(txt, isOnline) {
+        function updateStatus(txt, isOnline) {
             const el = document.getElementById("status-badge");
             el.innerText = txt;
             el.className = isOnline ? "status-badge online" : "status-badge offline";
@@ -115,10 +110,10 @@
             client.connect({
                 onSuccess: () => {
                     client.subscribe(TOPIC);
-                    updateUIStatus("MENUNGGU DATA...", true);
+                    updateStatus("MENUNGGU DATA...", true);
                 },
                 onFailure: (err) => {
-                    updateUIStatus("BROKER ERROR", false);
+                    updateStatus("BROKER ERROR", false);
                     setTimeout(connectMQTT, 5000);
                 },
                 useSSL: true,
@@ -126,9 +121,6 @@
                 keepAliveInterval: 30
             });
         }
-
-        // Jalankan Koneksi
-        connectMQTT();
     </script>
 </body>
 </html>
