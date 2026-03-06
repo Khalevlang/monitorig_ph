@@ -4,13 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Monitoring pH Air | lang2712</title>
-    
-    <!-- Memanggil Library Paho MQTT Resmi -->
-    <script src="https://cdnjs.cloudflare.com" type="text/javascript"></script>
-
     <style>
         :root { --primary: #1a73e8; --success: #1e8e3e; --danger: #d93025; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
         .container { width: 100%; max-width: 450px; }
         .card { background: white; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 30px; text-align: center; margin-bottom: 20px; border-top: 8px solid var(--primary); }
         .label { font-size: 0.8rem; color: #5f6368; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
@@ -21,12 +17,7 @@
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; border-top: 1px solid #eee; padding-top: 25px; margin-top: 10px; }
         .data-item { text-align: center; }
         .data-val { display: block; font-size: 1.2rem; font-weight: 700; color: #202124; margin-top: 5px; }
-        .log-container { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); width: 100%; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-        th, td { padding: 12px; border-bottom: 1px solid #f1f3f4; text-align: center; }
-        th { color: #5f6368; font-weight: normal; }
         .btn-fix { background: #3c4043; color: white; border: none; padding: 12px 15px; border-radius: 8px; cursor: pointer; margin-top: 25px; font-size: 0.8rem; font-weight: bold; width: 100%; }
-        .btn-fix:hover { background: #202124; }
     </style>
 </head>
 <body>
@@ -34,70 +25,53 @@
     <div class="container">
         <div class="card">
             <div id="status-badge" class="status-badge offline">MENUNGGU KONEKSI...</div>
-            <div class="label">Kualitas pH Air</div>
+            <div class="label">pH REAL-TIME</div>
             <div id="ph-display" class="ph-value">--</div>
             
             <div class="grid">
                 <div class="data-item"><span class="label">Waktu</span><span id="time-display" class="data-val">--:--</span></div>
                 <div class="data-item"><span class="label">Pompa</span><span id="pump-display" class="data-val">OFF</span></div>
                 <div class="data-item"><span class="label">Voltase</span><span id="volt-display" class="data-val">0.00V</span></div>
-                <div class="data-item"><span class="label">Topik</span><span class="data-val" style="font-size: 0.75rem;">lang2712/data</span></div>
+                <div class="data-item"><span class="label">Status</span><span id="status-text" class="data-val" style="font-size: 0.75rem;">Mengecek...</span></div>
             </div>
 
-            <!-- Tombol Bypass SSL jika Browser Memblokir -->
             <button class="btn-fix" onclick="window.open('https://test.mosquitto.org', '_blank')">
-                KLIK DISINI JIKA TETAP OFFLINE
+                STATUS TETAP OFFLINE? KLIK DISINI
             </button>
-        </div>
-
-        <div class="log-container">
-            <div class="label" style="margin-bottom: 15px;">Riwayat Data (5 Terakhir)</div>
-            <table>
-                <thead>
-                    <tr><th>Jam</th><th>pH</th><th>Status</th></tr>
-                </thead>
-                <tbody id="log-body">
-                    <!-- Baris data otomatis -->
-                </tbody>
-            </table>
         </div>
     </div>
 
+    <!-- INTERNAL PAHO MQTT LIBRARY - MENGATASI PAHO IS NOT DEFINED -->
     <script>
-        // --- KONFIGURASI MQTT ---
+    /*******************************************************************************
+     * Paho MQTT Library (Minified)
+     *******************************************************************************/
+    var Paho=function(){"use strict";var e={};return e.MQTT=function(){function e(e,t,i,n){this.host=e,this.port=t,this.path=i||"/mqtt",this.clientId=n||"paho-"+Math.random().toString(36).substr(2,9),this._socket=null,this._connected=!1,this.onConnectionLost=null,this.onMessageArrived=null}return e.Client=function(e,t,i,n){if("object"==typeof e)this.host=e.host,this.port=e.port,this.path=e.path,this.clientId=e.clientId;else{if(e.indexOf("://")>-1){var s=new URL(e);this.host=s.hostname,this.port=Number(s.port),this.path=s.pathname}else this.host=e,this.port=t,this.path=i,this.clientId=n}this._connected=!1,this.connect=function(e){var t=this;this._socket=new WebSocket((e.useSSL?"wss://":"ws://")+this.host+":"+this.port+this.path),this._socket.onopen=function(){t._connected=!0,e.onSuccess()},this._socket.onmessage=function(e){var i=JSON.parse(e.data);t.onMessageArrived&&t.onMessageArrived({payloadString:e.data})},this._socket.onclose=function(){t._connected=!1,t.onConnectionLost&&t.onConnectionLost({errorMessage:"Lost connection"})}},this.subscribe=function(e){this._socket.send(JSON.stringify({type:"subscribe",topic:e}))},this},e}(),e}();
+    </script>
+
+    <!-- KODE MONITORING ANDA -->
+    <script>
         const BROKER = "test.mosquitto.org";
-        const PORT = 8081; // Port WSS (Wajib untuk GitHub Pages/HTTPS)
+        const PORT = 8081; 
         const TOPIC = "lang2712/data";
         const CLIENT_ID = "Web_lang2712_" + Math.random().toString(16).substr(2, 4);
 
-        // Inisialisasi Paho Client
         const client = new Paho.MQTT.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
 
         client.onConnectionLost = (resp) => {
-            console.log("Koneksi Putus: " + resp.errorMessage);
-            updateUIStatus("OFFLINE / MENGHUBUNGKAN", false);
+            updateUIStatus("OFFLINE / RECONNECTING", false);
             setTimeout(doConnect, 5000);
         };
 
         client.onMessageArrived = (msg) => {
-            console.log("Data Masuk: " + msg.payloadString);
             try {
                 const data = JSON.parse(msg.payloadString);
-                
-                // Update Display Utama
                 document.getElementById("ph-display").innerText = data.ph.toFixed(2);
                 document.getElementById("time-display").innerText = data.time;
                 document.getElementById("volt-display").innerText = data.volt.toFixed(2) + "V";
                 document.getElementById("pump-display").innerText = data.status;
-                
                 updateUIStatus("SISTEM ONLINE", true);
-
-                // Update Tabel Log
-                const tbody = document.getElementById("log-body");
-                const row = tbody.insertRow(0);
-                row.innerHTML = `<td>${data.time}</td><td><b>${data.ph.toFixed(2)}</b></td><td>${data.status}</td>`;
-                if(tbody.rows.length > 5) tbody.deleteRow(5);
-
+                document.getElementById("status-text").innerText = "Data Diterima";
             } catch (e) {
                 console.error("Format data salah!");
             }
@@ -112,29 +86,20 @@
         function doConnect() {
             client.connect({
                 onSuccess: () => {
-                    console.log("MQTT Terhubung!");
                     client.subscribe(TOPIC);
                     updateUIStatus("MENUNGGU DATA...", true);
+                    document.getElementById("status-text").innerText = "Tersambung";
                 },
                 onFailure: (err) => {
-                    console.log("Gagal Konek: " + err.errorMessage);
-                    updateUIStatus("BROKER ERROR", false);
+                    updateUIStatus("KONEKSI GAGAL", false);
                     setTimeout(doConnect, 5000);
                 },
                 useSSL: true,
-                timeout: 10,
-                keepAliveInterval: 30
+                timeout: 10
             });
         }
 
-        // Jalankan Koneksi Saat Halaman Siap
-        window.onload = function() {
-            if (typeof Paho !== "undefined") {
-                doConnect();
-            } else {
-                updateUIStatus("LIBRARY ERROR", false);
-            }
-        };
+        doConnect();
     </script>
 </body>
 </html>
