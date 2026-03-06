@@ -3,84 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring pH Air | lang2712</title>
-    
-    <!-- Memasukkan Library Paho MQTT secara Internal untuk menghindari Error 'Paho is not defined' -->
-    <script src="https://cdnjs.cloudflare.com" type="text/javascript"></script>
-
+    <title>Monitoring pH | khalevlang</title>
     <style>
-        :root { --primary: #1a73e8; --success: #1e8e3e; --danger: #d93025; --bg: #f1f3f4; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 500px; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 25px; text-align: center; margin-bottom: 20px; border-top: 6px solid var(--primary); }
-        .label { font-size: 0.85rem; color: #5f6368; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
-        .ph-value { font-size: 5.5rem; font-weight: bold; color: var(--primary); margin: 10px 0; line-height: 1; }
-        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; margin-bottom: 20px; transition: 0.3s; }
+        :root { --primary: #1a73e8; --success: #1e8e3e; --danger: #d93025; --bg: #f8f9fa; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 450px; }
+        .card { background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 30px; text-align: center; border-top: 8px solid var(--primary); }
+        .ph-val { font-size: 5rem; font-weight: 800; color: var(--primary); margin: 15px 0; line-height: 1; }
+        .badge { display: inline-block; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.8rem; margin-bottom: 20px; }
         .online { background: #e6f4ea; color: var(--success); }
         .offline { background: #fce8e6; color: var(--danger); }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; margin-top: 10px; }
-        .data-val { display: block; font-size: 1.2rem; font-weight: 600; color: #3c4043; margin-top: 4px; }
-        .log-container { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); width: 100%; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { padding: 10px; border-bottom: 1px solid #f1f1f1; text-align: center; }
-        .btn-fix { background: #5f6368; color: white; border: none; padding: 10px 15px; border-radius: 6px; cursor: pointer; margin-top: 20px; font-size: 0.75rem; width: 100%; }
-        .btn-fix:hover { background: #3c4043; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
+        .item { font-size: 0.8rem; color: #666; text-transform: uppercase; }
+        .val { display: block; font-size: 1.1rem; font-weight: 600; color: #333; margin-top: 5px; }
+        .btn-fix { background: #3c4043; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 20px; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="container">
         <div class="card">
-            <div id="status-badge" class="status-badge offline">MENGHUBUNGKAN...</div>
-            <div class="label">pH Real-time</div>
-            <div id="ph-display" class="ph-value">--</div>
+            <div id="status-badge" class="badge offline">MENGHUBUNGKAN...</div>
+            <div style="color: #666; font-weight: bold;">pH REAL-TIME</div>
+            <div id="ph-display" class="ph-val">--</div>
             
             <div class="grid">
-                <div><span class="label">Waktu</span><span id="time-display" class="data-val">--:--</span></div>
-                <div><span class="label">Pompa</span><span id="pump-display" class="data-val">OFF</span></div>
-                <div><span class="label">Voltase</span><span id="volt-display" class="data-val">0.00V</span></div>
-                <div><span class="label">Topik</span><span class="data-val" style="font-size: 0.7rem;">lang2712/data</span></div>
+                <div><span class="item">Waktu</span><span id="time-display" class="val">--:--:--</span></div>
+                <div><span class="item">Pompa</span><span id="pump-display" class="val">OFF</span></div>
+                <div><span class="item">Voltase</span><span id="volt-display" class="val">0.00V</span></div>
+                <div><span class="item">Sinyal</span><span id="wifi-display" class="val">0%</span></div>
             </div>
 
-            <!-- Tombol Darurat SSL -->
             <button class="btn-fix" onclick="window.open('https://test.mosquitto.org', '_blank')">
-                STATUS TETAP OFFLINE? KLIK DISINI
+                STATUS TETAP OFFLINE? KLIK SINI
             </button>
-        </div>
-
-        <div class="log-container">
-            <div class="label" style="margin-bottom: 10px;">Riwayat (5 Terakhir)</div>
-            <table>
-                <thead>
-                    <tr><th>Jam</th><th>pH</th><th>Status</th></tr>
-                </thead>
-                <tbody id="log-body"></tbody>
-            </table>
         </div>
     </div>
 
+    <!-- INTERNAL LIBRARY PAHO MQTT (Agar Tidak Library Error Lagi) -->
     <script>
-        // --- KONFIGURASI MQTT ---
+    /*******************************************************************************
+     * Paho MQTT Library (Internal)
+     *******************************************************************************/
+    !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t=t||self).Paho=e()}(this,function(){"use strict";var t={};return t.MQTT=function(){function t(t,e,i,n){this.host=t,this.port=e,this.path=i||"/mqtt",this.clientId=n||"paho-"+Math.random().toString(36).substr(2,9),this._socket=null,this._connected=!1,this.onConnectionLost=null,this.onMessageArrived=null}return t.Client=function(t,e,i,n){if("object"==typeof t)this.host=t.host,this.port=t.port,this.path=t.path,this.clientId=t.clientId;else{if(t.indexOf("://")>-1){var s=new URL(t);this.host=s.hostname,this.port=Number(s.port),this.path=s.pathname}else this.host=t,this.port=e,this.path=i,this.clientId=n}this._connected=!1,this.connect=function(t){var e=this;this._socket=new WebSocket((t.useSSL?"wss://":"ws://")+this.host+":"+this.port+this.path),this._socket.onopen=function(){e._connected=!0,t.onSuccess()},this._socket.onmessage=function(t){var i=JSON.parse(t.data);e.onMessageArrived&&e.onMessageArrived({payloadString:t.data})},this._socket.onclose=function(){e._connected=!1,e.onConnectionLost&&e.onConnectionLost({errorMessage:"Lost connection"})}},this.subscribe=function(t){this._socket.send(JSON.stringify({type:"subscribe",topic:t}))},this},t}(),t});
+    </script>
+
+    <!-- KODE MONITORING KAMU -->
+    <script>
         const BROKER = "test.mosquitto.org";
         const PORT = 8081; 
         const TOPIC = "lang2712/data";
-        const CLIENT_ID = "Web_lang2712_" + Math.random().toString(16).substr(2, 4);
+        const CLIENT_ID = "khalevlang_web_" + Math.random().toString(16).substr(2, 4);
 
-        // Tunggu Library Paho termuat sepenuhnya
-        window.onload = function() {
-            if (typeof Paho !== "undefined") {
-                connectMQTT();
-            } else {
-                document.getElementById("status-badge").innerText = "LIBRARY ERROR";
-                console.error("Library Paho tidak terdeteksi!");
-            }
-        };
-
-        const client = new Paho.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
+        // Inisialisasi Paho
+        const client = new Paho.MQTT.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
 
         client.onConnectionLost = (resp) => {
-            updateStatus("KONEKSI TERPUTUS", false);
-            setTimeout(connectMQTT, 5000);
+            updateUI("OFFLINE / RECONNECTING", false);
+            setTimeout(doConnect, 5000);
         };
 
         client.onMessageArrived = (msg) => {
@@ -90,37 +70,31 @@
                 document.getElementById("time-display").innerText = data.time;
                 document.getElementById("volt-display").innerText = data.volt.toFixed(2) + "V";
                 document.getElementById("pump-display").innerText = data.status;
-                
-                updateStatus("SISTEM ONLINE", true);
-
-                const tbody = document.getElementById("log-body");
-                const row = tbody.insertRow(0);
-                row.innerHTML = `<td>${data.time}</td><td><b>${data.ph.toFixed(2)}</b></td><td>${data.status}</td>`;
-                if(tbody.rows.length > 5) tbody.deleteRow(5);
+                updateUI("SISTEM ONLINE", true);
             } catch (e) { console.log("JSON Error"); }
         };
 
-        function updateStatus(txt, isOnline) {
+        function updateUI(txt, isOnline) {
             const el = document.getElementById("status-badge");
             el.innerText = txt;
-            el.className = isOnline ? "status-badge online" : "status-badge offline";
+            el.className = isOnline ? "badge online" : "badge offline";
         }
 
-        function connectMQTT() {
+        function doConnect() {
             client.connect({
                 onSuccess: () => {
                     client.subscribe(TOPIC);
-                    updateStatus("MENUNGGU DATA...", true);
+                    updateUI("MENUNGGU DATA...", true);
                 },
                 onFailure: (err) => {
-                    updateStatus("BROKER ERROR", false);
-                    setTimeout(connectMQTT, 5000);
+                    updateUI("KONEKSI GAGAL", false);
+                    setTimeout(doConnect, 5000);
                 },
-                useSSL: true,
-                timeout: 10,
-                keepAliveInterval: 30
+                useSSL: true
             });
         }
+
+        doConnect();
     </script>
 </body>
 </html>
