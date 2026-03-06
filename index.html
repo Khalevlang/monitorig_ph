@@ -3,98 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring pH | khalevlang</title>
+    <title>Monitoring pH | lang2712</title>
+    <!-- Memanggil Library Paho Resmi via CDN yang Paling Stabil -->
+    <script src="https://cdnjs.cloudflare.com" type="text/javascript"></script>
     <style>
         :root { --primary: #1a73e8; --success: #1e8e3e; --danger: #d93025; --bg: #f8f9fa; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 450px; }
-        .card { background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 30px; text-align: center; border-top: 8px solid var(--primary); }
-        .ph-val { font-size: 5rem; font-weight: 800; color: var(--primary); margin: 15px 0; line-height: 1; }
-        .badge { display: inline-block; padding: 10px 20px; border-radius: 30px; font-weight: bold; font-size: 0.8rem; margin-bottom: 20px; }
+        .card { background: white; border-radius: 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); padding: 30px; text-align: center; width: 100%; max-width: 400px; border-top: 8px solid var(--primary); }
+        .ph-val { font-size: 5rem; font-weight: 800; color: var(--primary); margin: 15px 0; }
+        .badge { display: inline-block; padding: 8px 15px; border-radius: 20px; font-weight: bold; font-size: 0.8rem; margin-bottom: 20px; }
         .online { background: #e6f4ea; color: var(--success); }
         .offline { background: #fce8e6; color: var(--danger); }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
-        .item { font-size: 0.8rem; color: #666; text-transform: uppercase; }
+        .item { font-size: 0.75rem; color: #666; text-transform: uppercase; font-weight: bold; }
         .val { display: block; font-size: 1.1rem; font-weight: 600; color: #333; margin-top: 5px; }
-        .btn-fix { background: #3c4043; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; margin-top: 20px; width: 100%; font-weight: bold; }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div class="card">
-            <div id="status-badge" class="badge offline">MENGHUBUNGKAN...</div>
-            <div style="color: #666; font-weight: bold;">pH REAL-TIME</div>
-            <div id="ph-display" class="ph-val">--</div>
-            
-            <div class="grid">
-                <div><span class="item">Waktu</span><span id="time-display" class="val">--:--:--</span></div>
-                <div><span class="item">Pompa</span><span id="pump-display" class="val">OFF</span></div>
-                <div><span class="item">Voltase</span><span id="volt-display" class="val">0.00V</span></div>
-                <div><span class="item">Sinyal</span><span id="wifi-display" class="val">0%</span></div>
-            </div>
-
-            <button class="btn-fix" onclick="window.open('https://test.mosquitto.org', '_blank')">
-                STATUS TETAP OFFLINE? KLIK SINI
-            </button>
+    <div class="card">
+        <div id="st-badge" class="badge offline">MENGHUBUNGKAN...</div>
+        <div class="item">pH REAL-TIME</div>
+        <div id="ph-display" class="ph-val">--</div>
+        
+        <div class="grid">
+            <div><span class="item">Waktu</span><span id="time-display" class="val">--:--:--</span></div>
+            <div><span class="item">Pompa</span><span id="pump-display" class="val">OFF</span></div>
+            <div><span class="item">Voltase</span><span id="volt-display" class="val">0.00V</span></div>
+            <div><span class="item">Status</span><span id="st-text" class="val">Menunggu...</span></div>
         </div>
     </div>
 
-    <!-- INTERNAL LIBRARY PAHO MQTT (Agar Tidak Library Error Lagi) -->
     <script>
-    /*******************************************************************************
-     * Paho MQTT Library (Internal)
-     *******************************************************************************/
-    !function(t,e){"object"==typeof exports&&"undefined"!=typeof module?module.exports=e():"function"==typeof define&&define.amd?define(e):(t=t||self).Paho=e()}(this,function(){"use strict";var t={};return t.MQTT=function(){function t(t,e,i,n){this.host=t,this.port=e,this.path=i||"/mqtt",this.clientId=n||"paho-"+Math.random().toString(36).substr(2,9),this._socket=null,this._connected=!1,this.onConnectionLost=null,this.onMessageArrived=null}return t.Client=function(t,e,i,n){if("object"==typeof t)this.host=t.host,this.port=t.port,this.path=t.path,this.clientId=t.clientId;else{if(t.indexOf("://")>-1){var s=new URL(t);this.host=s.hostname,this.port=Number(s.port),this.path=s.pathname}else this.host=t,this.port=e,this.path=i,this.clientId=n}this._connected=!1,this.connect=function(t){var e=this;this._socket=new WebSocket((t.useSSL?"wss://":"ws://")+this.host+":"+this.port+this.path),this._socket.onopen=function(){e._connected=!0,t.onSuccess()},this._socket.onmessage=function(t){var i=JSON.parse(t.data);e.onMessageArrived&&e.onMessageArrived({payloadString:t.data})},this._socket.onclose=function(){e._connected=!1,e.onConnectionLost&&e.onConnectionLost({errorMessage:"Lost connection"})}},this.subscribe=function(t){this._socket.send(JSON.stringify({type:"subscribe",topic:t}))},this},t}(),t});
-    </script>
-
-    <!-- KODE MONITORING KAMU -->
-    <script>
+        // KONFIGURASI
         const BROKER = "test.mosquitto.org";
         const PORT = 8081; 
         const TOPIC = "lang2712/data";
-        const CLIENT_ID = "khalevlang_web_" + Math.random().toString(16).substr(2, 4);
+        const CLIENT_ID = "Web_lang_" + Math.random().toString(16).substr(2, 4);
 
         // Inisialisasi Paho
         const client = new Paho.MQTT.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
 
         client.onConnectionLost = (resp) => {
-            updateUI("OFFLINE / RECONNECTING", false);
-            setTimeout(doConnect, 5000);
+            document.getElementById("st-badge").innerText = "OFFLINE / RECONNECTING";
+            document.getElementById("st-badge").className = "badge offline";
+            setTimeout(startConnect, 5000);
         };
 
         client.onMessageArrived = (msg) => {
+            console.log("Pesan: " + msg.payloadString);
             try {
                 const data = JSON.parse(msg.payloadString);
                 document.getElementById("ph-display").innerText = data.ph.toFixed(2);
                 document.getElementById("time-display").innerText = data.time;
                 document.getElementById("volt-display").innerText = data.volt.toFixed(2) + "V";
                 document.getElementById("pump-display").innerText = data.status;
-                updateUI("SISTEM ONLINE", true);
-            } catch (e) { console.log("JSON Error"); }
+                
+                document.getElementById("st-badge").innerText = "SISTEM ONLINE";
+                document.getElementById("st-badge").className = "badge online";
+                document.getElementById("st-text").innerText = "Data Diterima";
+            } catch (e) { console.log("Gagal Parse JSON"); }
         };
 
-        function updateUI(txt, isOnline) {
-            const el = document.getElementById("status-badge");
-            el.innerText = txt;
-            el.className = isOnline ? "badge online" : "badge offline";
-        }
-
-        function doConnect() {
+        function startConnect() {
             client.connect({
                 onSuccess: () => {
+                    console.log("Terhubung!");
                     client.subscribe(TOPIC);
-                    updateUI("MENUNGGU DATA...", true);
+                    document.getElementById("st-badge").innerText = "MENUNGGU DATA...";
+                    document.getElementById("st-badge").className = "badge online";
+                    document.getElementById("st-text").innerText = "Tersambung";
                 },
                 onFailure: (err) => {
-                    updateUI("KONEKSI GAGAL", false);
-                    setTimeout(doConnect, 5000);
+                    console.log("Gagal Konek: " + err.errorMessage);
+                    setTimeout(startConnect, 5000);
                 },
-                useSSL: true
+                useSSL: true,
+                timeout: 10
             });
         }
 
-        doConnect();
+        // Jalankan
+        startConnect();
     </script>
 </body>
 </html>
