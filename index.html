@@ -3,99 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring pH Air - lang2712</title>
-    <!-- Library MQTT Paho via CDN -->
+    <title>Monitoring pH Air | lang2712</title>
+    <!-- Library MQTT Paho -->
     <script src="https://cdnjs.cloudflare.com" type="text/javascript"></script>
     <style>
-        :root { --primary: #1a73e8; --bg: #f8f9fa; --card: #ffffff; --text: #202124; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
-        .card { background: var(--card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); padding: 30px; width: 100%; max-width: 450px; text-align: center; border-top: 6px solid var(--primary); }
-        .ph-label { font-size: 1.1rem; color: #5f6368; margin-bottom: 5px; }
-        .ph-value { font-size: 5.5rem; font-weight: 800; color: var(--primary); margin: 10px 0; line-height: 1; }
-        .status-badge { display: inline-block; padding: 10px 20px; border-radius: 30px; font-weight: 600; font-size: 0.9rem; margin: 15px 0; transition: 0.3s; }
-        .online { background: #e6f4ea; color: #1e8e3e; }
-        .offline { background: #fce8e6; color: #d93025; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; border-top: 1px solid #eee; padding-top: 20px; }
-        .item-label { font-size: 0.75rem; color: #70757a; text-transform: uppercase; letter-spacing: 1px; }
-        .item-data { font-size: 1.1rem; font-weight: 600; color: #3c4043; display: block; margin-top: 4px; }
-        .footer { margin-top: 20px; font-size: 0.8rem; color: #9aa0a6; }
+        :root { --primary: #1a73e8; --success: #1e8e3e; --danger: #d93025; --bg: #f1f3f4; }
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        
+        .container { width: 100%; max-width: 500px; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); padding: 25px; text-align: center; margin-bottom: 20px; border-top: 6px solid var(--primary); }
+        
+        .label { font-size: 0.9rem; color: #5f6368; text-transform: uppercase; letter-spacing: 1px; }
+        .ph-value { font-size: 5rem; font-weight: bold; color: var(--primary); margin: 10px 0; }
+        
+        .status-badge { display: inline-block; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 0.85rem; margin-bottom: 20px; }
+        .online { background: #e6f4ea; color: var(--success); }
+        .offline { background: #fce8e6; color: var(--danger); }
+        
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; border-top: 1px solid #eee; padding-top: 20px; }
+        .grid-item { text-align: center; }
+        .data-val { display: block; font-size: 1.1rem; font-weight: 600; color: #3c4043; margin-top: 4px; }
+        
+        .log-container { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); width: 100%; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { padding: 10px; border-bottom: 1px solid #f1f1f1; text-align: center; }
+        th { color: #5f6368; }
+
+        .btn-fix { background: #5f6368; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; margin-top: 15px; font-size: 0.8rem; }
+        .btn-fix:hover { background: #3c4043; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <div class="ph-label">Kualitas pH Air</div>
-        <div id="ph-val" class="ph-value">--</div>
-        <div id="mqtt-status" class="status-badge offline">Menghubungkan ke Broker...</div>
-        
-        <div class="grid">
-            <div><span class="item-label">Waktu</span><span id="time-val" class="item-data">--:--:--</span></div>
-            <div><span class="item-label">Status Pompa</span><span id="pump-val" class="item-data">NORMAL</span></div>
-            <div><span class="item-label">Voltase</span><span id="volt-val" class="item-data">0.00 V</span></div>
-            <div><span class="item-label">Topic</span><span class="item-data" style="font-size: 0.8rem;">lang2712/data</span></div>
+    <div class="container">
+        <div class="card">
+            <div id="status-badge" class="status-badge offline">MENGHUBUNGKAN...</div>
+            <div class="label">Nilai pH Real-time</div>
+            <div id="ph-display" class="ph-value">--</div>
+            
+            <div class="grid">
+                <div class="grid-item"><span class="label">Waktu</span><span id="time-display" class="data-val">--:--:--</span></div>
+                <div class="grid-item"><span class="label">Pompa</span><span id="pump-display" class="data-val">OFF</span></div>
+                <div class="grid-item"><span class="label">Voltase</span><span id="volt-display" class="data-val">0.00V</span></div>
+                <div class="grid-item"><span class="label">Topik</span><span class="data-val" style="font-size: 0.7rem;">lang2712/data</span></div>
+            </div>
+
+            <!-- Tombol Fix jika SSL Error -->
+            <button class="btn-fix" onclick="window.open('https://test.mosquitto.org', '_blank')">
+                Klik ini jika status tetap Offline
+            </button>
+        </div>
+
+        <div class="log-container">
+            <div class="label" style="margin-bottom: 10px; display: block;">Riwayat Data (5 Terakhir)</div>
+            <table>
+                <thead>
+                    <tr><th>Jam</th><th>pH</th><th>Status</th></tr>
+                </thead>
+                <tbody id="log-body">
+                    <!-- Baris data otomatis masuk di sini -->
+                </tbody>
+            </table>
         </div>
     </div>
 
-    <div class="footer">Dashboard Real-time &bull; test.mosquitto.org</div>
-
     <script>
-        // CONFIG - Sesuaikan dengan ESP32 Anda
+        // --- KONFIGURASI ---
         const BROKER = "test.mosquitto.org";
-        const PORT = 8081; // Port WSS untuk koneksi aman/HTTPS
+        const PORT = 8081; // Port WSS (Websocket Secure)
         const TOPIC = "lang2712/data";
-        const CLIENT_ID = "Web_lang2712_" + Math.random().toString(16).substr(2, 4);
+        const CLIENT_ID = "Web_User_" + Math.random().toString(16).substr(2, 4);
 
-        // Inisialisasi Paho MQTT Client
+        // Inisialisasi Client
         const client = new Paho.MQTT.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
 
         client.onConnectionLost = (resp) => {
-            console.log("Koneksi terputus: " + resp.errorMessage);
-            updateStatus("OFFLINE", false);
-            setTimeout(connect, 5000); // Coba lagi dalam 5 detik
+            updateUIStatus("KONEKSI TERPUTUS", false);
+            setTimeout(connectMQTT, 5000);
         };
 
         client.onMessageArrived = (msg) => {
-            console.log("Data Diterima: " + msg.payloadString);
             try {
                 const data = JSON.parse(msg.payloadString);
                 
-                // Update Elemen UI
-                document.getElementById("ph-val").innerText = data.ph.toFixed(2);
-                document.getElementById("time-val").innerText = data.time;
-                document.getElementById("volt-val").innerText = data.volt.toFixed(2) + " V";
-                document.getElementById("pump-val").innerText = data.status;
+                // Update Display Utama
+                document.getElementById("ph-display").innerText = data.ph.toFixed(2);
+                document.getElementById("time-display").innerText = data.time;
+                document.getElementById("volt-display").innerText = data.volt.toFixed(2) + "V";
+                document.getElementById("pump-display").innerText = data.status;
                 
-                updateStatus("SISTEM ONLINE", true);
+                updateUIStatus("SISTEM ONLINE", true);
+
+                // Update Tabel Riwayat
+                const tbody = document.getElementById("log-body");
+                const row = tbody.insertRow(0);
+                row.innerHTML = `<td>${data.time}</td><td><b>${data.ph.toFixed(2)}</b></td><td>${data.status}</td>`;
+                if(tbody.rows.length > 5) tbody.deleteRow(5);
+
             } catch (e) {
-                console.error("Format data bukan JSON valid!");
+                console.error("Payload bukan JSON valid!", msg.payloadString);
             }
         };
 
-        function updateStatus(txt, isOnline) {
-            const el = document.getElementById("mqtt-status");
+        function updateUIStatus(txt, isOnline) {
+            const el = document.getElementById("status-badge");
             el.innerText = txt;
             el.className = isOnline ? "status-badge online" : "status-badge offline";
         }
 
-        function connect() {
+        function connectMQTT() {
             client.connect({
                 onSuccess: () => {
-                    console.log("Terhubung ke MQTT Broker");
                     client.subscribe(TOPIC);
-                    updateStatus("MENUNGGU DATA...", true);
+                    updateUIStatus("MENUNGGU DATA...", true);
                 },
                 onFailure: (err) => {
-                    console.log("Gagal Terhubung: " + err.errorMessage);
-                    updateStatus("BROKER ERROR", false);
-                    setTimeout(connect, 5000);
+                    updateUIStatus("BROKER ERROR", false);
+                    setTimeout(connectMQTT, 5000);
                 },
                 useSSL: true,
-                timeout: 10
+                timeout: 10,
+                keepAliveInterval: 30
             });
         }
 
         // Jalankan Koneksi
-        connect();
+        connectMQTT();
     </script>
 </body>
 </html>
