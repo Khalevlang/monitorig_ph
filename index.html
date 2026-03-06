@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Monitoring pH | khalevlang</title>
+    <title>Monitoring pH | lang2712</title>
     <style>
         :root { --primary: #1a73e8; --success: #1e8e3e; --danger: #d93025; --bg: #f8f9fa; }
         body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
@@ -29,47 +29,66 @@
             <div><span class="item">Waktu</span><span id="time-display" class="val">--:--:--</span></div>
             <div><span class="item">Pompa</span><span id="pump-display" class="val">OFF</span></div>
             <div><span class="item">Voltase</span><span id="volt-display" class="val">0.00V</span></div>
-            <div><span class="item">Topik</span><span class="val" style="font-size: 0.7rem;">lang2712/data</span></div>
+            <div><span class="item">Topic</span><span class="val" style="font-size: 0.7rem;">lang2712/data</span></div>
         </div>
 
         <button class="btn-fix" onclick="window.open('https://test.mosquitto.org', '_blank')">
-            STATUS TETAP OFFLINE? KLIK DISINI
+            KLIK DISINI JIKA TETAP OFFLINE
         </button>
     </div>
 
-    <!-- LIBRARY PAHO MQTT INTERNAL (MINIFIED) -->
-    <script>
-    /*******************************************************************************
-     * PAHO MQTT CLIENT INTERNAL LIBRARY
-     *******************************************************************************/
-    var Paho=function(){"use strict";var n={};return n.Client=function(n,t,e,r){if("object"==typeof n)this.host=n.host,this.port=n.port,this.path=n.path,this.clientId=n.clientId;else{if(n.indexOf("://")>-1){var o=new URL(n);this.host=o.hostname,this.port=Number(o.port),this.path=o.pathname}else this.host=n,this.port=t,this.path=e,this.clientId=r}this._socket=null,this._connected=!1,this.onConnectionLost=null,this.onMessageArrived=null,this.connect=function(n){var t=this;this._socket=new WebSocket((n.useSSL?"wss://":"ws://")+this.host+":"+this.port+this.path),this._socket.onopen=function(){t._connected=!0,n.onSuccess()},this._socket.onmessage=function(n){var e=JSON.parse(n.data);t.onMessageArrived&&t.onMessageArrived({payloadString:n.data})},this._socket.onclose=function(){t._connected=!1,t.onConnectionLost&&t.onConnectionLost({errorMessage:"Lost connection"})}},this.subscribe=function(n){this._socket.send(JSON.stringify({type:"subscribe",topic:n}))}},n}();
-    </script>
+    <!-- LIBRARY PAHO MQTT LENGKAP (INTERNAL) -->
+    <script src="https://cdnjs.cloudflare.com" type="text/javascript"></script>
 
-    <!-- KODE MONITORING ANDA -->
     <script>
+        // KONFIGURASI MQTT
         const BROKER = "test.mosquitto.org";
         const PORT = 8081; 
         const TOPIC = "lang2712/data";
         const CLIENT_ID = "khalev_web_" + Math.random().toString(16).substr(2, 4);
 
-        // Inisialisasi Paho secara langsung tanpa pengecekan eksternal
-        const client = new Paho.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
+        // Pastikan Paho dimuat sebelum inisialisasi
+        let client;
 
-        client.onConnectionLost = (resp) => {
-            updateStatus("OFFLINE / RECONNECTING", false);
-            setTimeout(doConnect, 5000);
-        };
-
-        client.onMessageArrived = (msg) => {
+        function startConnect() {
             try {
-                const data = JSON.parse(msg.payloadString);
-                document.getElementById("ph-display").innerText = data.ph.toFixed(2);
-                document.getElementById("time-display").innerText = data.time;
-                document.getElementById("volt-display").innerText = data.volt.toFixed(2) + "V";
-                document.getElementById("pump-display").innerText = data.status;
-                updateStatus("SISTEM ONLINE", true);
-            } catch (e) { console.log("JSON Error"); }
-        };
+                client = new Paho.MQTT.Client("wss://" + BROKER + ":" + PORT + "/mqtt", CLIENT_ID);
+
+                client.onConnectionLost = (resp) => {
+                    updateStatus("OFFLINE / RECONNECTING", false);
+                    setTimeout(startConnect, 5000);
+                };
+
+                client.onMessageArrived = (msg) => {
+                    console.log("Data: " + msg.payloadString);
+                    try {
+                        const data = JSON.parse(msg.payloadString);
+                        document.getElementById("ph-display").innerText = data.ph.toFixed(2);
+                        document.getElementById("time-display").innerText = data.time;
+                        document.getElementById("volt-display").innerText = data.volt.toFixed(2) + "V";
+                        document.getElementById("pump-display").innerText = data.status;
+                        updateStatus("SISTEM ONLINE", true);
+                    } catch (e) { console.log("JSON Parse Error"); }
+                };
+
+                client.connect({
+                    onSuccess: () => {
+                        console.log("Connected!");
+                        client.subscribe(TOPIC);
+                        updateStatus("MENUNGGU DATA...", true);
+                    },
+                    onFailure: (err) => {
+                        console.log("Failed: " + err.errorMessage);
+                        updateStatus("GAGAL KONEK", false);
+                        setTimeout(startConnect, 5000);
+                    },
+                    useSSL: true,
+                    timeout: 10
+                });
+            } catch (e) {
+                updateStatus("LIBRARY ERROR", false);
+            }
+        }
 
         function updateStatus(txt, isOnline) {
             const el = document.getElementById("st-badge");
@@ -77,22 +96,8 @@
             el.className = "badge " + (isOnline ? "online" : "offline");
         }
 
-        function doConnect() {
-            client.connect({
-                onSuccess: () => {
-                    client.subscribe(TOPIC);
-                    updateStatus("MENUNGGU DATA...", true);
-                },
-                onFailure: (err) => {
-                    updateStatus("GAGAL KONEK", false);
-                    setTimeout(doConnect, 5000);
-                },
-                useSSL: true
-            });
-        }
-
         // Jalankan koneksi
-        doConnect();
+        window.onload = startConnect;
     </script>
 </body>
 </html>
